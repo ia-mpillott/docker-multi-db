@@ -1,0 +1,113 @@
+
+
+##Docker stack includes latest version of Ignition + database servers: mysql, mssql, oracle, postgres
+services:
+  # Ignition Principal Gateway
+  ignition:
+    image: "inductiveautomation/ignition:${IGN_PRINCIPAL_RELEASE:-latest}"
+    restart: always
+    ports:
+      - ${IGN_PRINCIPAL_PORT:-8088}:8088
+    volumes:
+      - ignPrincipalData:/usr/local/bin/ignition/data
+    environment:
+      ACCEPT_IGNITION_EULA: 'Y'
+      GATEWAY_ADMIN_USERNAME: ${IGN_PRINCIPAL_USERNAME:-admin}
+      GATEWAY_ADMIN_PASSWORD: ${IGN_PRINCIPAL_PASSWORD:-password}
+      IGNITION_EDITION: ${IGN_PRINCIPAL_EDITION:-standard}
+      TZ: ${TZ:-America/Log_Angeles}
+    command:
+      -n ${IGN_PRINCIPAL_GATEWAY_NAME:-Ign_Fullstack}
+    networks:
+      - net
+  
+  # Microsoft SQL Server Database
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    restart: always
+    environment:
+      ACCEPT_EULA: 'Y'
+      # The Product ID (Edition) that the container will run with
+      #  Developer | Express | Standard | Enterprise | EnterpriseCore
+      MSSQL_PID: ${MSSQL_VERSION:-Express}
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASS:-MSSQLRoot}
+    ports:
+      - ${MSSQL_PORT:-1433}:1433
+    volumes:
+      # Use a volume to store DB data to preserve state between container restarts
+      - mssqlDatabaseData:/var/opt/mssql
+    networks:
+      # Join this container to the docker network "net"
+      - net
+    # Require the profile "mssql" for this container to run
+    #  Use environmental variable "COMPOSE_PROFILES" with comma separated string
+    profiles: ["mssql"]
+  
+ #Oracle.  Connection string looks like: jdbc:oracle:thin:@{ip/hostname}:{port}:xe
+  oracle:
+    image: gvenzl/oracle-xe
+    hostname: OracleDB
+    restart: always
+    environment:
+      ORACLE_PASSWORD: ${ORACLE_DB_PASSWORD:-Oracle}
+      TZ: ${TZ:-America/Log_Angeles}
+    ports:
+     - ${ORACLE_DB_PORT:-1521}:1521
+    volumes:
+      - oracleData:/var/lib/postgresql/data
+    networks:
+      - net
+      
+  # MySQL Database
+  mysql:
+    # Use the most recent official mysql docker image
+    image: mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASS:-MySQLRoot}
+      MYSQL_USER: ${MYSQL_USER:-MySQLadmin}
+      MYSQL_PASSWORD: ${MYSQL_PASS:-MySQLpassword}
+      MYSQL_DATABASE: ${MYSQL_NAME:-ignition}
+      TZ: ${MYSQL_TZ:-America/Log_Angeles}
+    ports:
+      - ${MYSQL_PORT:-3306}:3306
+    volumes:
+      # Use a volume to store DB data to preserve state between container restarts
+      - mysqlDatabaseData:/var/lib/mysql
+    networks:
+      # Join this container to the docker network "net"
+      - net
+    # Require the profile "mysql" for this container to run
+    #  Use environmental variable "COMPOSE_PROFILES" with comma separated string
+    profiles: ["mysql"]
+  
+  
+  # Postgres Database
+  postgres:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASS:-PostgreSQL}
+      POSTGRES_USER: ${POSTGRES_USERNAME:-Postgres}
+      POSTGRES_DB: ${POSTGRES_NAME:-Postgres}
+      TZ: ${POSTGRES_TZ:-America/Los_Angeles}
+    ports:
+     - ${POSTGRES_PORT:-5432}:5432
+    volumes:
+      - postgresDatabaseData:/var/lib/postgresql/data
+    networks:
+      - net
+    # Require the profile "postgres" for this container to run
+    #  Use environmental variable "COMPOSE_PROFILES" with comma separated string
+    profiles: ["postgres"]
+  
+networks:
+  net:
+    driver: bridge
+
+volumes:
+  ignPrincipalData:
+  mssqlDatabaseData:
+  mysqlDatabaseData:
+  postgresDatabaseData:
+  oracleData:
